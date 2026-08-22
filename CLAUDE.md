@@ -119,25 +119,38 @@ vercel --prod --yes --scope keith9922s-projects
 
 ## 6. 多会话协作约定 ⚠️
 
-这个项目**没有 git**，而且确实发生过两个会话同时改同一个文件、互相覆盖：
+**已经有 git 了**（分支 `main`，暂无远端）。历史干净，`.env` 正确忽略。
+之前发生过两个窗口同时改同一个文件、互相覆盖的事：
 
 - `content.js` 里的 `FALLBACK` / `GENTLE_FALLBACK` / `MOCK_REPLIES` 被一次重构整组删掉
-- prompt 里的「开新坑边界」修复**被回退过两次**
-- 有一次部署上去的是两个会话的混合半成品
+- prompt 里的「开新坑边界」修复**被回退过三次**
+- 有一次部署上去的是两个窗口的混合半成品
 
-约定：
+### 约定
 
-1. **动手前先 `ls -lT` 看 mtime。** 如果文件是几分钟内被改过的，先问一句，别直接写。
-2. **一次会话尽量只占一个文件。** 改文案去 `content.js`，改 UI 去 `index.html`，
-   改逻辑去 `game.js`。跨文件的大重构先说一声。
-3. **用锚点替换，不要整文件重写。** `python3` + `assert old in s` + `replace(old,new,1)`，
-   锚点找不到就报错停下，别硬写。
-4. **改完立刻验证再走**：`node --check`，以及把 `content.js` + `game.js` 一起 eval
-   看有没有引用了却没定义的全局（`node --check` 查不出来，那些引用在函数体里）。
-5. **强烈建议开 git。** 一条命令的事，能省掉上面全部麻烦：
-   `git init && git add -A && git commit -m "在做啦 v0.1"`
+1. **动手前先 `git status` + `git log --oneline -5`。**
+   工作区不干净说明另一个窗口正在改，先看清楚再动。
+2. **改完就 commit，别攒。** 小步提交是这里最有效的防覆盖手段——
+   被覆盖了 `git diff HEAD` 一眼就能看出来，`git checkout` 就能捞回来。
+3. **一次会话尽量只占一个文件。** 改文案去 `content.js`，改 UI 去 `index.html`，
+   改逻辑去 `game.js`。跨文件的大重构先 commit 一次再开始。
+4. **用锚点替换，不要整文件重写。**
+   `python3` + `assert old in s` + `replace(old, new, 1)`，锚点找不到就报错停下，别硬写。
+5. **改完立刻验证再走**：`node --check`，以及把 `content.js` + `game.js` 一起 eval，
+   检查有没有"引用了却没定义"的全局（`node --check` 查不出来，那些引用在函数体里）。
+6. **验证 prompt 内容不要用 `buildSystem.toString()`** ——
+   它现在只是 `buildStatic() + buildDynamic()` 的三行壳子，
+   要检查就检查**合成后**的字符串。
+7. **提交信息沿用现有风格**：`feat:` / `fix:` / `chore:` + 中文一句话。
 
----
+### 常用
+
+```bash
+git status --short && git log --oneline -5     # 动手前
+git diff HEAD -- game.js                       # 我的改动被谁盖了？
+git add -A && git commit -m "feat: ..."        # 改完就提
+vercel --prod --yes --scope keith9922s-projects # 部署前先确认工作区干净
+```
 
 ## 7. 当前状态
 
@@ -146,7 +159,7 @@ vercel --prod --yes --scope keith9922s-projects
 
 **待办：**
 
-- [ ] 线上还缺 `AI_API_KEY`，配好之前只有 `?mock=1` 能玩
+- [x] ~~线上缺 `AI_API_KEY`~~ 已配好，线上全链路可玩
 - [ ] 节奏要用真模型调。现在起始信任 80 / 衰减 −5 是个待验的猜测，
       第一局跑完按 `~` 当场拖。压测里 mock 回复写得比真模型狠得多，别拿它当准
 - [ ] 跨设备排行榜（现在 localStorage，各玩各的）。想做就加 `api/board.js` + Cloudflare KV
