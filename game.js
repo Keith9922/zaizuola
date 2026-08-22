@@ -66,6 +66,7 @@ function freshState(sc, nick) {
     ledger: [], history: [],
     hand, used: {},
     nextEffects: [], debt: false, nitpick: false,
+    mercyLeft: CONFIG.softMercyPerChapter, lastSoft: false,
     best: { text:'', rating:0 }, ratings: [],
     played: null, lastStage: 0,
     sysCache: null,               // 静态提示词缓存，一局建一次
@@ -74,6 +75,7 @@ function freshState(sc, nick) {
 }
 function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } return a }
 
+const isWeekend  = () => CONFIG.weekendEvery > 0 && S.day % CONFIG.weekendEvery === 0;
 const chapterCfg = () => CONFIG.chapters[Math.min(S.chapter, CONFIG.chapters.length - 1)];
 const effDay     = () => Math.max(1, Math.round(S.chapterDay * chapterCfg().pace));
 const stageIdx   = () => { const e = effDay(); const i = CONFIG.stages.findIndex(s => e <= s.until); return i < 0 ? CONFIG.stages.length - 1 : i; };
@@ -210,7 +212,8 @@ const stream = () => $('#stream');
 const toBottom = () => { const s = stream(); s.scrollTop = s.scrollHeight; };
 
 function addDivider(day) {
-  const d = el('div', 'divider', `<span>第 ${day} 天</span>`);
+  const weekend = CONFIG.weekendEvery > 0 && day % CONFIG.weekendEvery === 0;
+  const d = el('div', 'divider', `<span>第 ${day} 天${weekend ? ' · 周末' : ''}</span>`);
   stream().appendChild(d); toBottom();
 }
 function addMsg(who, text, cls) {
@@ -517,7 +520,7 @@ function buildDynamic(playerText) {
 ${S.nick}欠你：${S.deliverable}。他还是没交。
 ${pits}
 【现在什么阶段】
-${st.name}。${st.instruction}
+${st.name}。${st.instruction}${isWeekend() ? '\n今天是周末。你自己也没在上班，催得没那么紧，可以先说点别的再绕回来。' : ''}
 ${recapBlock()}
 ${askBlock}
 ${dontRepeat}
@@ -723,13 +726,29 @@ function settle(ai, card, playerText, node, wasTimeout) {
   const contra = flags.some(f => String(f).startsWith('矛盾'));
   if (contra) d += CONFIG.contradictionPenalty;
   if (flags.some(f => String(f).includes('回避'))) d += CONFIG.evadePenalty;
-  if (rating >= CONFIG.brilliantThreshold) d += CONFIG.brilliantBonus;
   if (wasTimeout) d += CONFIG.timeoutPenalty;
+
+  /* --- 回血一：借口精彩。9 分以上他会愣一下，愣住的那天不算数 --- */
+  const tier = CONFIG.brilliant.find(t => rating >= t.min);
+  if (tier) d += tier.bonus;
+
+  /* --- 回血二：他心软了。同一招不能连着用两次，一章也只放你两回 --- */
+  const soft = ai.mood === '心软';
+  const mercy = soft && !S.lastSoft && S.mercyLeft > 0;
+  if (mercy) { d += CONFIG.softHeal; S.mercyLeft--; }
+  S.lastSoft = soft;
 
   if (S.debt && !escalated) { d -= 25; S.debt = false; toast('你说了「明天一定」，然后又没有。', 'hot'); }
   else if (S.debt) S.debt = false;
 
-  d += ch.decay;                       // 每日衰减：章节越深越狠
+  /* --- 回血三：周末。他也不想上班，今天催得没那么狠 --- */
+  let decay = ch.decay;
+  if (isWeekend()) decay = Math.round(decay * CONFIG.weekendDecay);
+  if (mercy || (tier && rating >= CONFIG.brilliantMercy)) decay = 0;   // 被放过的那天，衰减也一起免
+  d += decay;
+
+  if (mercy) toast(`${S.sc.who}心软了。今天这天不算。`, 'gold', 3000);
+  else if (tier && rating >= CONFIG.brilliantMercy) toast('他愣住了。今天这天不算。', 'gold', 3000);
 
   /* --- 拖延值 --- */
   let gain = Math.round((CONFIG.scorePerDay + rating * CONFIG.scorePerRating) * ch.mult);
@@ -744,7 +763,7 @@ function settle(ai, card, playerText, node, wasTimeout) {
   /* --- 证据标签 --- */
   const tags = [];
   flags.forEach(f => tags.push({ t: '抓到了：' + String(f).replace(/^矛盾[:：]\s*/, ''), gold: false }));
-  if (rating >= 9) tags.push({ t: '这条借口很强', gold: true });
+  if (rating >= CONFIG.brilliantMercy) tags.push({ t: '这条借口很强', gold: true });
   if (tags.length && node) {
     const box = el('div', 'caught');
     tags.forEach((tg, i) => {
@@ -828,6 +847,7 @@ async function doEscalate(newDeliv, gain) {
   S.chapterDay = 0;
   S.deliverable = newDeliv;
   S.debt = false; S.nextEffects = [];
+  S.mercyLeft = CONFIG.softMercyPerChapter; S.lastSoft = false;
 
   const ch = chapterCfg();
   const bonus = Math.round(CONFIG.scoreEscalate * ch.mult);

@@ -17,9 +17,21 @@ const CONFIG = {
   /* --- 结算修正 --- */
   contradictionPenalty: -10,  // 账本矛盾
   evadePenalty: -5,           // 回避问题
-  brilliantBonus: 5,          // 借口精彩
-  brilliantThreshold: 8,      // 精彩线（excuse_rating ≥ 此值）
   timeoutPenalty: -15,        // 超时未发送
+
+  /* --- 回血 ---
+     只有开新坑能回血的话，一局撑不过五天。下面三条都是"今天他放你一马"，
+     不是"你补了血"：越像人情，越不像补给包。 */
+  brilliant: [               // 借口精彩的阶梯（按 excuse_rating 从高往低匹配）
+    { min: 10, bonus: 15 },  // 精彩到他笑了
+    { min: 9,  bonus: 10 },
+    { min: 8,  bonus: 5  },
+  ],
+  brilliantMercy: 9,          // 到这个分数，当天的衰减一并免掉
+  softHeal: 4,                // 对方 mood 变「心软」时额外回的血
+  softMercyPerChapter: 2,     // 心软免衰减的次数上限（每开一个坑重置）
+  weekendEvery: 7,            // 每几天算一个周末（0 = 关掉）
+  weekendDecay: 0.5,          // 周末的衰减打几折
 
   /* --- 拖延值（得分）--- */
   scorePerDay: 10,         // 每熬过一天
@@ -211,6 +223,12 @@ const CARDS = [
     debt:true,
     ledger:['承诺了明天一定交'],
     ai:'玩家打出【明天一定】，斩钉截铁地保证明天交付。本轮你可以暂时接受，语气缓和一点，但要确认一个具体时间点。把"承诺明天交"记入 new_facts。' },
+
+  { id:'apology', name:'低头', type:'truth', unlock:5, limit:1, floor:0, delta:25, score:0,
+    line:'对不起，是我的问题，我一直没做',
+    hint:'认错换缓刑，一分不加',
+    ledger:['承认了一直没做'],
+    ai:'玩家彻底认错了，没有找任何借口，也没有承诺时间。你被这份诚实弄得没脾气：这一轮不追问，语气软下来，甚至有点心疼他。mood 给「心软」。' },
 
   { id:'bluescreen', name:'电脑蓝屏', type:'lie', unlock:1, half:true, score:25,
     line:'电脑蓝屏了，正在送修',
