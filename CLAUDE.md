@@ -3,7 +3,9 @@
 > 每个会话开局都会自动读到这个文件。**动手之前先看完**，尤其是「已验证的事实」那一节 ——
 > 里面每一条都是花了真实 API 调用和真实渲染换来的，别重新踩。
 
-线上：https://zaizuola.vercel.app　·　演示模式（不需要 key）：https://zaizuola.vercel.app/?mock=1
+**线上**：https://zaizuola.zhangrg.top　（备用 https://zaizuola.vercel.app）
+**演示模式**（不需要 key，离线可玩完整一局）：https://zaizuola.zhangrg.top/?mock=1
+**仓库**：https://github.com/Keith9922/zaizuola　（private，分支 `main`）
 
 ---
 
@@ -101,8 +103,15 @@ prompt 里那段「这三种情况一律 escalate: false」是修复，实测边
 vercel --prod --yes --scope keith9922s-projects
 ```
 
-项目名 `zaizuola`，scope `keith9922s-projects`，生产别名 `zaizuola.vercel.app`（公开可访问）。
+项目名 `zaizuola`，scope `keith9922s-projects`。
+自定义域名 `zaizuola.zhangrg.top`（Let's Encrypt，走 Cloudflare CNAME → `cname.vercel-dns.com`，**灰云**）。
+生产别名 `zaizuola.vercel.app` 也可用。
 带 `-keith9922s-projects.vercel.app` 后缀的是预览地址，有 SSO 保护会 302，属正常。
+
+> ⚠️ Cloudflare 那条 CNAME 的 **Proxy 必须是灰云（DNS only）**。
+> 开橙云会和 Vercel 自己的 SSL 签发打架，结果是证书一直 pending 或者重定向循环。
+> 本机 `dig` 不可信（TUN 代理会把结果改写成 `198.18.x.x`），
+> 要查真实解析用 DoH：`curl -H 'accept: application/dns-json' 'https://1.1.1.1/dns-query?name=zaizuola.zhangrg.top&type=CNAME'`
 
 环境变量（**key 绝不写进任何文件**）：
 
@@ -163,6 +172,6 @@ vercel --prod --yes --scope keith9922s-projects # 部署前先确认工作区干
 - [ ] 节奏要用真模型调。现在起始信任 80 / 衰减 −5 是个待验的猜测，
       第一局跑完按 `~` 当场拖。压测里 mock 回复写得比真模型狠得多，别拿它当准
 - [ ] 跨设备排行榜（现在 localStorage，各玩各的）。想做就加 `api/board.js` + Cloudflare KV
-- [ ] 没绑自定义域名。要绑 `zaizuola.zhangrg.top` 的话走 my-infra 的 bind-domain playbook
+- [x] ~~没绑自定义域名~~ 已绑 `zaizuola.zhangrg.top`，SSL 已签发
 
 做不完的功能，菜单里放个「在做啦」按钮，点了弹"在做啦"。这是设计的一部分，不是没做完。
