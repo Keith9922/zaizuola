@@ -922,6 +922,10 @@ async function renderReport() {
   $('#ovCause').textContent  = '正在复盘……';
   $('#ovGentle').textContent = '……';
 
+  /* 复盘要几秒。这期间死因还没回来，先别让人交出半截记录。 */
+  reportPending = true;
+  syncSaveBtn();
+
   let rep;
   try { rep = await askReport(); }
   catch (e) {
@@ -932,6 +936,8 @@ async function renderReport() {
     b.type = 'button';
     b.onclick = renderReport;
     $('#ovGentle').appendChild(b);
+    reportPending = false;
+    syncSaveBtn();
     return;
   }
 
@@ -939,6 +945,8 @@ async function renderReport() {
   $('#ovGentle').textContent = rep.gentle_line;
   if (rep.best_excuse && !S.best.text) $('#ovBest').textContent = rep.best_excuse;
   if (saveDraft) saveDraft.cause = rep.cause_of_death;
+  reportPending = false;
+  syncSaveBtn();
 }
 
 async function askReport() {
@@ -985,6 +993,15 @@ ${hist}
    排行榜
    ============================================================ */
 let saveDraft = null;
+let reportPending = false;
+
+/* 复盘没回来之前不给上榜——否则记录里的死因是空的 */
+function syncSaveBtn() {
+  const btn = $('#ovSave');
+  if (!btn || !saveDraft) return;
+  btn.disabled = reportPending;
+  btn.textContent = reportPending ? '结算中…' : '上榜';
+}
 const BKEY = 'zzl_board_v1';
 const readLocal  = () => { try { return JSON.parse(localStorage.getItem(BKEY)) || [] } catch (e) { return [] } };
 const writeLocal = b => { try { localStorage.setItem(BKEY, JSON.stringify(b.slice(-80))) } catch (e) {} };
@@ -1082,7 +1099,7 @@ async function paintBoard() {
       `<div class="rk">${String(i + 1).padStart(2, '0')}</div>
        <div class="rk-who">
          <div class="rk-n">${escapeHTML(r.nick)}${r.legend ? '<span class="star">★</span>' : ''}</div>
-         <div class="rk-m">${escapeHTML(r.scenario)} · ${escapeHTML(r.cause || '')}</div>
+         <div class="rk-m">${[r.scenario, r.cause].filter(Boolean).map(escapeHTML).join(' · ')}</div>
        </div>
        <div class="rk-s">${r.score.toLocaleString()}</div>
        <div class="rk-c">${r.days} 天 · ${r.pits} 坑</div>
