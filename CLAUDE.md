@@ -126,6 +126,40 @@ vercel --prod --yes --scope keith9922s-projects
 
 ---
 
+## 5.5 共享排行榜（Cloudflare KV）
+
+`api/board.js`。`GET` 返回 Top N + 全场统计，`POST` 上榜。
+
+**Key 设计**：`e:{9999999-拖延值 补零7位}:{随机id}`。
+KV 的 list 按字典序**升序**返回，所以这样排出来正好是拖延值**降序** ——
+一次 list 就拿到 Top N，不用逐条 GET。记录本体放在 key 的 **metadata** 里
+（上限 1024 字节，所以字段名用单字母：`n` 昵称 / `p` 拖延值 / `d` 天数 / `k` 坑数 …）。
+
+**前端策略**：共享优先、本机兜底。拿不到服务端就退回 localStorage 并在页面上标注
+「仅本机」。**排行榜挂了绝不能影响游戏。** 上榜时本机永远留一份。
+
+### 还没启用——差一步（需要人在 Cloudflare 后台点）
+
+现有的 `cloudflare-api-token` **建的时候没勾 KV 权限**，
+直接调 KV API 会返回 `code 10000 Authentication error`（看着像 token 失效，其实不是，
+同一个 token 操作 R2/DNS 完全正常）。
+
+1. 去 https://dash.cloudflare.com/profile/api-tokens 编辑那个 token，补上
+   `Account · Workers KV Storage · Edit`。改完 token 字符串不变，不用重新存钥匙串。
+2. `infra kv new zaizuola-board`
+3. 把三个环境变量设进 Vercel 项目，然后重新部署：
+
+```bash
+vercel env add CF_ACCOUNT_ID production --scope keith9922s-projects
+vercel env add CF_KV_TOKEN production --scope keith9922s-projects
+vercel env add CF_KV_NAMESPACE production --scope keith9922s-projects
+vercel --prod --yes --scope keith9922s-projects
+```
+
+配好之前 `/api/board` 返回 `503 not_configured`，前端自动走本机模式，**游戏照常能玩**。
+
+---
+
 ## 6. 多会话协作约定 ⚠️
 
 **已经有 git 了**（分支 `main`，暂无远端）。历史干净，`.env` 正确忽略。
@@ -171,7 +205,7 @@ vercel --prod --yes --scope keith9922s-projects # 部署前先确认工作区干
 - [x] ~~线上缺 `AI_API_KEY`~~ 已配好，线上全链路可玩
 - [ ] 节奏要用真模型调。现在起始信任 80 / 衰减 −5 是个待验的猜测，
       第一局跑完按 `~` 当场拖。压测里 mock 回复写得比真模型狠得多，别拿它当准
-- [ ] 跨设备排行榜（现在 localStorage，各玩各的）。想做就加 `api/board.js` + Cloudflare KV
+- [ ] 共享排行榜代码已写好（`api/board.js`），差 Cloudflare token 补 KV 权限，见 §5.5
 - [x] ~~没绑自定义域名~~ 已绑 `zaizuola.zhangrg.top`，SSL 已签发
 
 做不完的功能，菜单里放个「在做啦」按钮，点了弹"在做啦"。这是设计的一部分，不是没做完。
