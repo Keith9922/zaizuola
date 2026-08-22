@@ -989,12 +989,6 @@ const BKEY = 'zzl_board_v1';
 const readLocal  = () => { try { return JSON.parse(localStorage.getItem(BKEY)) || [] } catch (e) { return [] } };
 const writeLocal = b => { try { localStorage.setItem(BKEY, JSON.stringify(b.slice(-80))) } catch (e) {} };
 
-/* 服务端为了塞进 KV metadata（上限 1024 字节）用了单字母字段，这里还原 */
-const unpack = m => ({
-  nick: m.n, scenario: m.s, who: m.w, score: m.p || 0, days: m.d || 0,
-  pits: m.k || 1, title: m.t, cause: m.c, legend: !!m.g, avg: m.a || 0,
-});
-
 function tallyOf(rows) {
   const total = rows.reduce((a, r) => a + (r.score || 0), 0);
   const by = {};
@@ -1017,7 +1011,7 @@ async function loadBoard() {
     const r = await fetch('/api/board?limit=50');
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
-    const rows = (d.rows || []).map(unpack);
+    const rows = d.rows || [];   /* 服务端直接返回完整字段，不用再转换 */
     return { mode: 'kv', rows, stats: d.stats || tallyOf(rows) };
   } catch (e) {
     const rows = readLocal().sort((a, b) => b.score - a.score || b.avg - a.avg);
