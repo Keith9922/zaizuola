@@ -25,7 +25,8 @@ const CONFIG = {
   brilliant: [               // 借口精彩的阶梯（按 excuse_rating 从高往低匹配）
     { min: 10, bonus: 15 },  // 精彩到他笑了
     { min: 9,  bonus: 10 },
-    { min: 8,  bonus: 5  },
+    { min: 8,  bonus: 6  },
+    { min: 7,  bonus: 3  },  // 实测模型日常给 2~6 分，7 分已经是"他愣了半秒"
   ],
   brilliantMercy: 9,          // 到这个分数，当天的衰减一并免掉
   softHeal: 4,                // 对方 mood 变「心软」时额外回的血
