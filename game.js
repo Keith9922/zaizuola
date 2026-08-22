@@ -639,6 +639,22 @@ async function askAI(playerText) {
   throw last || new Error('AI 没回话');
 }
 
+/* 开场白也得现写，不能用写死的文案：欠的东西是随机抽的（rollDeliverable），
+   写死的开场白经常是另一件事，对不上题。失败就交给调用方兜底。 */
+async function askOpener() {
+  const sc = S.sc;
+  const prompt = `你在玩一个叫《在做啦》的中文文字游戏，扮演${sc.who}，${sc.role}。${sc.desc}
+玩家叫「${S.nick}」，欠你：${S.deliverable}，一直没交。
+
+这是你主动发的第一条消息，直接开口催——像真人在微信里打字，1~2 句，不超过40字，
+要具体提到「${S.deliverable}」这件事，不写称呼语开头，不加引号，不写解释和旁白。
+直接输出这句话本身，不要输出别的任何字。`;
+  const text = await callAPI([{ role: 'user', content: prompt }]);
+  const line = String(text || '').trim().replace(/^["「『]|["」』]$/g, '').trim();
+  if (!line) throw new Error('开场白是空的');
+  return line.slice(0, 60);
+}
+
 /* ============================================================
    一个回合
    ============================================================ */
@@ -935,14 +951,14 @@ ${hist}
                   不要说教，不要鸡汤腔，不要用'其实'开头，不超过40字。"
 }`;
 
-  try {
-    const j = extractJSON(await callAPI([{ role: 'user', content: prompt }], REPORT_SCHEMA, 'report'));
-    return {
-      cause_of_death: j.cause_of_death || local.cause_of_death,
-      best_excuse:    j.best_excuse || local.best_excuse,
-      gentle_line:    j.gentle_line || local.gentle_line,
-    };
-  } catch (e) { return local; }
+  const j = extractJSON(await callAPI([{ role: 'user', content: prompt }], REPORT_SCHEMA, 'report'));
+  const cause = String(j.cause_of_death || '').trim();
+  if (!cause) throw new Error('模型没给 cause_of_death');
+  return {
+    cause_of_death: cause,
+    best_excuse:    String(j.best_excuse || '').trim(),
+    gentle_line:    String(j.gentle_line || '').trim(),
+  };
 }
 
 /* ============================================================
@@ -950,12 +966,80 @@ ${hist}
    ============================================================ */
 let saveDraft = null;
 const BKEY = 'zzl_board_v1';
-const readBoard  = () => { try { return JSON.parse(localStorage.getItem(BKEY)) || [] } catch (e) { return [] } };
-const writeBoard = b => { try { localStorage.setItem(BKEY, JSON.stringify(b.slice(0, 60))) } catch (e) {} };
+const readLocal  = () => { try { return JSON.parse(localStorage.getItem(BKEY)) || [] } catch (e) { return [] } };
+const writeLocal = b => { try { localStorage.setItem(BKEY, JSON.stringify(b.slice(-80))) } catch (e) {} };
 
-function paintBoard() {
-  const rows = readBoard().sort((a, b) => b.score - a.score || b.avg - a.avg);
-  const box = $('#ranks'); box.innerHTML = '';
+/* 服务端为了塞进 KV metadata（上限 1024 字节）用了单字母字段，这里还原 */
+const unpack = m => ({
+  nick: m.n, scenario: m.s, who: m.w, score: m.p || 0, days: m.d || 0,
+  pits: m.k || 1, title: m.t, cause: m.c, legend: !!m.g, avg: m.a || 0,
+});
+
+function tallyOf(rows) {
+  const total = rows.reduce((a, r) => a + (r.score || 0), 0);
+  const by = {};
+  rows.forEach(r => { if (r.scenario) by[r.scenario] = (by[r.scenario] || 0) + 1; });
+  const top = Object.entries(by).sort((a, b) => b[1] - a[1])[0];
+  return {
+    players:     rows.length,
+    totalScore:  total,
+    maxScore:    rows.length ? Math.max(...rows.map(r => r.score || 0)) : 0,
+    avgScore:    rows.length ? Math.round(total / rows.length) : 0,
+    totalDays:   rows.reduce((a, r) => a + (r.days || 0), 0),
+    totalPits:   rows.reduce((a, r) => a + (r.pits || 0), 0),
+    topScenario: top ? top[0] : '—',
+  };
+}
+
+/* 优先服务端共享榜，拿不到就退回本机。排行榜挂了绝不能影响游戏。 */
+async function loadBoard() {
+  try {
+    const r = await fetch('/api/board?limit=50');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    const rows = (d.rows || []).map(unpack);
+    return { mode: 'kv', rows, stats: d.stats || tallyOf(rows) };
+  } catch (e) {
+    const rows = readLocal().sort((a, b) => b.score - a.score || b.avg - a.avg);
+    return { mode: 'local', rows, stats: tallyOf(rows) };
+  }
+}
+
+/* 本机永远留一份，服务端能上就上 */
+async function submitBoard(d) {
+  const local = readLocal(); local.push(d); writeLocal(local);
+  try {
+    const r = await fetch('/api/board', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(d),
+    });
+    return r.ok;
+  } catch (e) { return false; }
+}
+
+async function paintBoard() {
+  const box = $('#ranks');
+  box.innerHTML = '<div class="empty">读取中…</div>';
+
+  const { mode, rows, stats } = await loadBoard();
+
+  $('#bdMode').className = 'board-mode' + (mode === 'local' ? ' local' : '');
+  $('#bdMode').innerHTML = mode === 'kv'
+    ? '<b>全场共享</b> · 所有人的成绩都汇总在这里'
+    : '<b>仅本机</b> · 共享排行榜还没配好，先记在这台设备上';
+
+  const n = v => Number(v || 0).toLocaleString();
+  $('#bdStats').innerHTML = [
+    `<div class="bs"><div class="bs-v">${n(stats.players)}</div><div class="bs-l">上过榜的人</div></div>`,
+    `<div class="bs"><div class="bs-v">${n(stats.totalScore)}</div><div class="bs-l">累计拖延值</div></div>`,
+    `<div class="bs"><div class="bs-v">${n(stats.maxScore)}</div><div class="bs-l">单局最高</div></div>`,
+    `<div class="bs"><div class="bs-v">${n(stats.avgScore)}</div><div class="bs-l">人均</div></div>`,
+    `<div class="bs"><div class="bs-v">${n(stats.totalDays)}</div><div class="bs-l">累计拖了几天</div></div>`,
+    `<div class="bs"><div class="bs-s" style="margin-top:3px">${escapeHTML(stats.topScenario || '—')}</div><div class="bs-l">最招人催的</div></div>`,
+  ].join('');
+
+  box.innerHTML = '';
   if (!rows.length) { box.appendChild(el('div', 'empty', '还没有人上榜。也可能大家都在做啦。')); return; }
   rows.forEach((r, i) => {
     const n = el('div', 'rank',
@@ -1021,8 +1105,11 @@ async function startGame() {
   show('game');
   paintHUD();
   addDivider(1);
-  await aiSpeak(sc.opener);
-  S.history.push({ role: 'ai', text: sc.opener, day: 1, flags: [] });
+  let openLine = sc.opener;
+  try { openLine = await askOpener(); }
+  catch (e) { console.warn('[zzl] 开场白没现写成，用兜底文案：', e && e.message || e); }
+  await aiSpeak(openLine);
+  S.history.push({ role: 'ai', text: openLine, day: 1, flags: [] });
   S.busy = false;
   paintHand();
   startTimer();
@@ -1062,15 +1149,19 @@ function boot() {
   $('#mL').onclick = () => { $('#colL').classList.toggle('open'); $('#colR').classList.remove('open'); };
   $('#mR').onclick = () => { $('#colR').classList.toggle('open'); $('#colL').classList.remove('open'); };
 
-  $('#ovSave').onclick = () => {
+  $('#ovSave').onclick = async () => {
     if (!saveDraft) return;
-    const b = readBoard(); b.push(saveDraft); writeBoard(b);
+    $('#ovSave').disabled = true;
+    $('#ovSave').textContent = '上榜中…';
+    const ok = await submitBoard(saveDraft);
     saveDraft = null;
-    $('#ovSave').textContent = '已上榜'; $('#ovSave').disabled = true;
-    paintBoard(); show('board');
+    $('#ovSave').textContent = ok ? '已上榜' : '已记在本机';
+    show('board');
+    paintBoard();
   };
   $('#ovAgain').onclick = () => location.reload();
-  $('#ovBoard').onclick = () => { paintBoard(); show('board'); };
+  $('#ovBoard').onclick   = () => { show('board'); paintBoard(); };
+  $('#bdRefresh').onclick = () => paintBoard();
   $('#bdBack').onclick  = () => show(S && S.over ? 'over' : 'start');
 }
 
