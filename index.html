@@ -137,6 +137,27 @@ body[data-stage="4"] #vig{animation:breathe 3.4s ease-in-out infinite}
 .btn-go .arrow{transition:transform .25s var(--ez)}
 .btn-go:hover .arrow{transform:translateX(4px)}
 
+.board-entry{
+  margin-top:16px;width:100%;max-width:330px;display:flex;align-items:center;gap:11px;
+  padding:11px 13px;border-radius:12px;background:var(--ink-850);
+  border:1px solid var(--line);text-align:left;
+  transition:transform .22s var(--ez),border-color .22s,background .22s;
+}
+.board-entry:hover{transform:translateY(-2px);border-color:var(--line-2);background:var(--ink-800)}
+.board-entry:active{transform:scale(.985)}
+.be-ic{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+  background:rgba(232,197,90,.1);color:var(--t3);transition:color .25s,background .25s}
+.board-entry.has .be-ic{color:var(--acc);background:rgba(232,197,90,.15)}
+.be-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.be-label{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--t3)}
+.be-who{font-size:13px;font-weight:500;color:var(--t2);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.board-entry.has .be-who{color:var(--t1)}
+.be-score{flex:none;font-family:var(--mono);font-size:17px;font-weight:700;
+  letter-spacing:-.02em;color:var(--t3);font-variant-numeric:tabular-nums}
+.board-entry.has .be-score{color:var(--acc)}
+.be-arrow{flex:none;color:var(--t3);transition:transform .25s var(--ez)}
+.board-entry:hover .be-arrow{transform:translateX(3px)}
 .picker{align-self:center}
 .picker-hd{display:flex;align-items:baseline;justify-content:space-between;
   padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:18px}
@@ -626,6 +647,26 @@ body[data-stage="4"] #vig{animation:breathe 3.4s ease-in-out infinite}
         <svg class="arrow" width="17" height="17" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M5 12h13M13 6l6 6-6 6"/>
+        </svg>
+      </button>
+
+      <button class="board-entry" id="startBoard" type="button">
+        <span class="be-ic">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 14.66V17a1 1 0 0 1-1 1a2 2 0 0 0-2 2v2m7-7.34V17a1 1 0 0 0 1 1a2 2 0 0 1 2 2v2m.916-12H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3M4 22h16"/>
+            <path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/>
+            <path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/>
+          </svg>
+        </span>
+        <span class="be-mid">
+          <span class="be-label" id="beLabel">拖延王</span>
+          <span class="be-who" id="beWho">看看谁拖得最久</span>
+        </span>
+        <span class="be-score" id="beScore">—</span>
+        <svg class="be-arrow" viewBox="0 0 24 24" width="15" height="15" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m9 18l6-6l-6-6"/>
         </svg>
       </button>
     </div>

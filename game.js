@@ -1038,6 +1038,28 @@ async function submitBoard(d) {
   } catch (e) { return false; }
 }
 
+/* 首页那张排行榜入口卡：非阻塞地拉一次榜首当钩子。
+   拉不到就保持默认文案，绝不能拖慢开始页。 */
+async function peekBoard() {
+  const who = $('#beWho'), score = $('#beScore'), label = $('#beLabel'), card = $('#startBoard');
+  try {
+    const { rows, stats } = await loadBoard();
+    /* 空榜要把四个字段全部复位，只改一个会留下上一次的残影 */
+    if (!rows.length) {
+      who.textContent = '还没有人上榜';
+      score.textContent = '—';
+      label.textContent = '拖延王';
+      card.classList.remove('has');
+      return;
+    }
+    const t = rows[0];
+    who.textContent   = `${t.nick} · ${t.days} 天 · ${t.pits} 坑`;
+    score.textContent = (t.score || 0).toLocaleString();
+    label.textContent = stats.players > 1 ? `拖延王 · ${stats.players} 人上榜` : '拖延王';
+    card.classList.add('has');
+  } catch (e) { /* 静默：入口保持默认文案，不打扰开始页 */ }
+}
+
 async function paintBoard() {
   const box = $('#ranks');
   box.innerHTML = '<div class="empty">读取中…</div>';
@@ -1178,11 +1200,15 @@ function boot() {
     $('#ovSave').textContent = ok ? '已上榜' : '已记在本机';
     show('board');
     paintBoard();
+    peekBoard();
   };
   $('#ovAgain').onclick = () => location.reload();
   $('#ovBoard').onclick   = () => { show('board'); paintBoard(); };
   $('#bdRefresh').onclick = () => paintBoard();
   $('#bdBack').onclick  = () => show(S && S.over ? 'over' : 'start');
+  $('#startBoard').onclick = () => { show('board'); paintBoard(); };
+  
+  peekBoard();
 }
 
 document.addEventListener('DOMContentLoaded', boot);
