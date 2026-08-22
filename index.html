@@ -267,6 +267,13 @@ body[data-stage="4"] #vig{animation:breathe 3.4s ease-in-out infinite}
 .msg.sys{align-self:center;max-width:none}
 .msg.sys .bubble{background:transparent;border:1px dashed var(--line-2);
   color:var(--t3);font-size:12px;padding:6px 13px;border-radius:8px}
+.msg.sys.fail .bubble{display:inline-flex;align-items:center;gap:10px;
+  border-color:rgba(216,82,78,.45);color:var(--bad)}
+.retry{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--acc);
+  border:1px solid rgba(232,197,90,.42);border-radius:7px;padding:4px 9px;cursor:pointer;
+  transition:background .2s,transform .16s var(--pop)}
+.retry:hover{background:rgba(232,197,90,.13)}
+.retry:active{transform:scale(.94)}
 .msg.shake{animation:shake .42s cubic-bezier(.36,.07,.19,.97)}
 @keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}
   30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
@@ -313,6 +320,8 @@ body[data-stage="4"] #vig{animation:breathe 3.4s ease-in-out infinite}
 .count{position:absolute;right:13px;bottom:9px;font-family:var(--mono);font-size:10px;
   color:var(--t3);letter-spacing:.06em}
 .count.warn{color:var(--mid)}
+.send-hint{margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--t3);
+  letter-spacing:.06em}
 
 .timer{position:relative;width:46px;height:46px;flex:none;display:grid;place-items:center}
 .timer svg{position:absolute;inset:0;transform:rotate(-90deg)}
@@ -695,6 +704,7 @@ body[data-stage="4"] #vig{animation:breathe 3.4s ease-in-out infinite}
             </svg>
           </button>
         </div>
+        <div class="send-hint">Enter 换行 · 写完点右边的箭头发送</div>
       </div>
     </div>
 

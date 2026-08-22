@@ -323,33 +323,3 @@ const STAGE_TOAST = {
   3: '对方基本不信你了',
   4: '对方快崩溃了',
 };
-
-/* 兜底：AI 挂掉时也不能卡死 */
-const FALLBACK = {
-  reply: '？',
-  trust_delta: -5,
-  excuse_rating: 3,
-  flags: [],
-  new_facts: [],
-  mood: '怀疑',
-  escalate: false,
-};
-
-/* 演示模式（?mock=1）：不联网也能完整玩一局，现场网络炸了用这个 */
-const MOCK_REPLIES = [
-  { reply:'行吧。那你大概什么时候能给我一个准信？', trust_delta:-4, excuse_rating:5, flags:[], new_facts:['说在弄了'], mood:'平静' },
-  { reply:'你昨天也是这么说的。今天几点能发？', trust_delta:-9, excuse_rating:4, flags:['敷衍'], new_facts:[], mood:'怀疑' },
-  { reply:'等一下。你前面说电脑坏了，那你现在拿什么在改？', trust_delta:-14, excuse_rating:3, flags:['矛盾：电脑坏了却在改稿'], new_facts:[], mood:'生气' },
-  { reply:'我就要一个截图。一张。现在。', trust_delta:-18, excuse_rating:2, flags:['回避问题'], new_facts:[], mood:'生气' },
-  { reply:'……说实话我有点被你说服了。那这个更大的方案，你打算做多久？', trust_delta:2, excuse_rating:9, flags:[], new_facts:['提出了更大的方案'], mood:'心软', escalate:true, new_deliverable:'整套品牌视觉规范' },
-  { reply:'你知道我等了多少天吗。我数给你听。', trust_delta:-22, excuse_rating:3, flags:[], new_facts:[], mood:'绝望' },
-];
-
-/* AI 结算挂掉时的兜底温柔话 */
-const GENTLE_FALLBACK = [
-  '你这几天开了七个文档，每个都写了一行。那也是写了。',
-  '你花六个小时挑了一个字体。挑字体也是做事，只是没人给你发工资。',
-  '你没做完，但你一直在想它。想它也很累的，这个不算白过。',
-  '你把这件事拖了这么久，说明你其实很在乎它做得好不好。',
-  '你拖的这几天，其实也在做啦。',
-];
